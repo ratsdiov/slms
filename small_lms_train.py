@@ -9,8 +9,24 @@ from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 from nano_gpt_model import NanoGPT
 
-# -----------------------------
 
+# -----------------------------
+def print_cuda_memory_stats():
+    print(
+        "torch.cuda.memory_allocated: %fGB"
+        % (torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024)
+    )
+    print(
+        "torch.cuda.memory_reserved: %fGB"
+        % (torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024)
+    )
+    print(
+        "torch.cuda.max_memory_reserved: %fGB"
+        % (torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024)
+    )
+
+
+# -----------------------------
 # setup cuda
 torch.cuda.memory._record_memory_history(enabled=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -26,13 +42,13 @@ tokenizer = Tokenizer.from_file(tokenizer_file)
 
 # hyperparameters
 hyperparameters = {
-    "n_epochs": 5,
+    "n_epochs": 2,
     "vocab_size": tokenizer.get_vocab_size(),
-    "batch_size": 4,
+    "batch_size": 16,
     "block_size": 1080,
     "learning_rate": 5e-4,
     "n_embed": 256,
-    "n_heads": 12,
+    "n_heads": 8,  # Must be an even divisor of n_embed
     "n_layers": 8,
     "dropout": 0.1,
 }
@@ -97,6 +113,7 @@ lossi = []
 lri = []
 progress_bar = tqdm(range(num_training_steps))
 
+print_cuda_memory_stats()
 for epoch in range(n_epochs):
     model.train()  # switch model to training mode
     if saved_epoch != None and epoch <= saved_epoch:
@@ -162,6 +179,7 @@ for epoch in range(n_epochs):
 
         avg_train_loss = losses.mean()
         print(f"train loss: {avg_train_loss}")
+        # print(torch.cuda.memory_summary())
         # -----------------------------
 
         # save checkpoint
@@ -179,7 +197,11 @@ for epoch in range(n_epochs):
         )
         # -----------------------------
 # -----------------------------
-
+torch.cuda.memory._dump_snapshot(
+    f"checkpoints/3-epoch-{num_params:.3f}M-checkpoint-{epoch}-cuda_snapshot.pickle"
+)
+print(torch.cuda.memory_summary())
 from matplotlib import pyplot as plt
 
 plt.plot(torch.tensor(lossi).view(-1, 25).mean(1))
+plt.show()
