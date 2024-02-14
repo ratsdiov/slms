@@ -35,7 +35,15 @@ print(f"using {device}")
 # -----------------------------
 
 # load dataset
-dataset = load_dataset("roneneldan/TinyStories")
+# dataset = load_dataset("roneneldan/TinyStories")
+dataset = load_dataset(
+    "text",
+    data_files={
+        # "train": r"..\..\datasets\TinyStories\TinyStoriesV2-GPT4-train-100k-lines.txt",
+        "train": r"..\..\datasets\TinyStories\TinyStoriesV2-GPT4-train.txt",  # Full original
+        "validation": r"..\..\datasets\TinyStories\TinyStoriesV2-GPT4-valid.txt",
+    },
+)
 tokenizer_file = "data/TinyStories-tokenizer.json"
 tokenizer = Tokenizer.from_file(tokenizer_file)
 # -----------------------------
@@ -44,12 +52,12 @@ tokenizer = Tokenizer.from_file(tokenizer_file)
 hyperparameters = {
     "n_epochs": 2,
     "vocab_size": tokenizer.get_vocab_size(),
-    "batch_size": 16,
+    "batch_size": 8,
     "block_size": 1080,
-    "learning_rate": 5e-4,
+    "learning_rate": 5e-2,
     "n_embed": 256,
-    "n_heads": 8,  # Must be an even divisor of n_embed
-    "n_layers": 8,
+    "n_heads": 2,  # Must be an even divisor of n_embed
+    "n_layers": 6,
     "dropout": 0.1,
 }
 
@@ -62,6 +70,9 @@ n_embed = hyperparameters["n_embed"]
 n_heads = hyperparameters["n_heads"]
 n_layers = hyperparameters["n_layers"]
 dropout = hyperparameters["dropout"]
+
+# Training parameters
+n_train = 100000
 # -----------------------------
 
 # tokenize dataset
@@ -74,10 +85,10 @@ tokenized_data = dataset.map(
 tokenized_data = tokenized_data.with_format("torch")
 
 train_ids = tokenized_data["train"].remove_columns(["text"])
-train_ids = train_ids.shuffle().select(range(30000))
+train_ids = train_ids.shuffle().select(range(n_train))
 
 val_ids = tokenized_data["validation"].remove_columns(["text"])
-val_ids = val_ids.shuffle().select(range(3000))
+val_ids = val_ids.shuffle().select(range(int(n_train / 10)))
 # -----------------------------
 
 # setup model and trainer
