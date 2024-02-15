@@ -1,4 +1,8 @@
 # imports
+from datetime import datetime
+import os
+import pprint
+
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW, lr_scheduler
@@ -34,9 +38,14 @@ torch.set_default_device("cpu")
 print(f"using {device}")
 # -----------------------------
 
+# Create checkpoint directory
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+checkpoint_dir = f"checkpoints/{timestamp}"
+os.mkdir(checkpoint_dir)
+
 # load dataset
-# dataset = load_dataset("roneneldan/TinyStories")
-dataset = load_dataset(
+dataset = load_dataset("roneneldan/TinyStories")
+dataset_local = load_dataset(
     "text",
     data_files={
         # "train": r"..\..\datasets\TinyStories\TinyStoriesV2-GPT4-train-100k-lines.txt",
@@ -50,14 +59,14 @@ tokenizer = Tokenizer.from_file(tokenizer_file)
 
 # hyperparameters
 hyperparameters = {
-    "n_epochs": 2,
+    "n_epochs": 3,
     "vocab_size": tokenizer.get_vocab_size(),
     "batch_size": 8,
     "block_size": 1080,
-    "learning_rate": 5e-2,
+    "learning_rate": 5e-4,
     "n_embed": 256,
-    "n_heads": 2,  # Must be an even divisor of n_embed
-    "n_layers": 6,
+    "n_heads": 8,  # Must be an even divisor of n_embed
+    "n_layers": 8,
     "dropout": 0.1,
 }
 
@@ -71,8 +80,10 @@ n_heads = hyperparameters["n_heads"]
 n_layers = hyperparameters["n_layers"]
 dropout = hyperparameters["dropout"]
 
-# Training parameters
-n_train = 100000
+# Training parameters (Must be an even multiple of n_lossi_bins * batch_size for lossi plotting)
+n_train = 50000
+n_lossi_bins = 25
+assert n_train % (n_lossi_bins * batch_size) == 0
 # -----------------------------
 
 # tokenize dataset
@@ -125,6 +136,8 @@ lri = []
 progress_bar = tqdm(range(num_training_steps))
 
 print_cuda_memory_stats()
+start_time = datetime.now()
+
 for epoch in range(n_epochs):
     model.train()  # switch model to training mode
     if saved_epoch != None and epoch <= saved_epoch:
@@ -203,16 +216,38 @@ for epoch in range(n_epochs):
             "val_loss": avg_val_loss,
             "train_loss": avg_train_loss.item(),
         }
-        torch.save(
-            checkpoint, f"checkpoints/3-epoch-{num_params:.3f}M-checkpoint-{epoch}.pt"
+        checkpoint_name = (
+            f"{checkpoint_dir}/{n_epochs}-epoch-{num_params:.3f}M-checkpoint-{epoch}"
         )
+        print(f"saving {checkpoint_name}")
+        torch.save(checkpoint, f"{checkpoint_name}.pt")
         # -----------------------------
 # -----------------------------
-torch.cuda.memory._dump_snapshot(
-    f"checkpoints/3-epoch-{num_params:.3f}M-checkpoint-{epoch}-cuda_snapshot.pickle"
-)
+torch.cuda.memory._dump_snapshot(f"{checkpoint_name}-cuda_snapshot.pickle")
 print(torch.cuda.memory_summary())
+
+# Write log info
+with open(f"{checkpoint_name}.log", mode="w+t") as log_file:
+    log_file.write(f"Elapsed time: {(datetime.now()-start_time)} h:m:s\n")
+    log_file.write(f"Final train loss: {losses[-1].item()}\n")
+    log_file.write(f"Average train loss: {avg_train_loss}\n")
+    log_file.write(f"Final val loss: {avg_val_loss}\n")
+    pprint.pprint(hyperparameters, log_file)
+    log_file.write(f"n_train = {n_train}\n")
+    log_file.write(
+        f"CUDA max_memory_allocated: {torch.cuda.max_memory_allocated()/1e9}GB\n"
+    )
+    log_file.write(f"losses:\n")
+    pprint.pprint(losses.tolist(), log_file)
+    log_file.write(f"lossi:\n")
+    pprint.pprint(lossi, log_file)
+    log_file.write(torch.cuda.memory_summary())
+
+
 from matplotlib import pyplot as plt
 
-plt.plot(torch.tensor(lossi).view(-1, 25).mean(1))
+# Take the list of log10 losses and divide into n_lossi_bins bins then compute mean of each bin
+plt.plot(torch.tensor(lossi).view(-1, min(len(lossi), n_lossi_bins)).mean(1))
+plt.plot(losses.tolist())
+plt.savefig(f"{checkpoint_name}.png")
 plt.show()
