@@ -81,7 +81,7 @@ n_layers = hyperparameters["n_layers"]
 dropout = hyperparameters["dropout"]
 
 # Training parameters (Must be an even multiple of n_lossi_bins * batch_size for lossi plotting)
-n_train = 50000
+n_train = 80000
 n_lossi_bins = 25
 assert n_train % (n_lossi_bins * batch_size) == 0
 # -----------------------------
@@ -243,6 +243,7 @@ with open(f"{checkpoint_name}.log", mode="w+t") as log_file:
     pprint.pprint(lossi, log_file)
     log_file.write(torch.cuda.memory_summary())
 
+print(f"Checkpoint files are in {checkpoint_dir}")
 
 from matplotlib import pyplot as plt
 
