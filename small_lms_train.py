@@ -65,12 +65,12 @@ tokenizer = Tokenizer.from_file(tokenizer_file)
 hyperparameters = {
     "n_epochs": 3,
     "vocab_size": tokenizer.get_vocab_size(),
-    "batch_size": 8,
+    "batch_size": 4,
     "block_size": 1080,
     "learning_rate": 5e-4,
     "n_embed": 256,
     "n_heads": 8,  # Must be an even divisor of n_embed
-    "n_layers": 8,
+    "n_layers": 16,
     "dropout": 0.1,
 }
 
@@ -85,7 +85,7 @@ n_layers = hyperparameters["n_layers"]
 dropout = hyperparameters["dropout"]
 
 # Training parameters (Must be an even multiple of n_lossi_bins * batch_size for lossi plotting)
-n_train = 200000
+n_train = 100000
 n_lossi_bins = 25
 assert n_train % (n_lossi_bins * batch_size) == 0
 # -----------------------------
