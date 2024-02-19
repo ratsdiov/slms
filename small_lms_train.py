@@ -21,6 +21,10 @@ def print_cuda_memory_stats():
         % (torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024)
     )
     print(
+        "torch.cuda.max_memory_allocated: %fGB"
+        % (torch.cuda.max_memory_allocated(0) / 1024 / 1024 / 1024)
+    )
+    print(
         "torch.cuda.memory_reserved: %fGB"
         % (torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024)
     )
@@ -81,7 +85,7 @@ n_layers = hyperparameters["n_layers"]
 dropout = hyperparameters["dropout"]
 
 # Training parameters (Must be an even multiple of n_lossi_bins * batch_size for lossi plotting)
-n_train = 80000
+n_train = 200000
 n_lossi_bins = 25
 assert n_train % (n_lossi_bins * batch_size) == 0
 # -----------------------------
@@ -225,10 +229,13 @@ for epoch in range(n_epochs):
 # -----------------------------
 torch.cuda.memory._dump_snapshot(f"{checkpoint_name}-cuda_snapshot.pickle")
 print(torch.cuda.memory_summary())
+elapsed_time = f"Elapsed time: {(datetime.now()-start_time)} h:m:s\n"
+print(elapsed_time)
+
 
 # Write log info
 with open(f"{checkpoint_name}.log", mode="w+t") as log_file:
-    log_file.write(f"Elapsed time: {(datetime.now()-start_time)} h:m:s\n")
+    log_file.write(elapsed_time)
     log_file.write(f"Final train loss: {losses[-1].item()}\n")
     log_file.write(f"Average train loss: {avg_train_loss}\n")
     log_file.write(f"Final val loss: {avg_val_loss}\n")
