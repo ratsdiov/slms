@@ -28,6 +28,10 @@ class AttentionHead(nn.Module):
 
         V = self.value(x)  # (B, T, C)
         out = wei @ V  # (B, T, T) @ (B, T, C) -> (B, T, C)
+        if False:  # KBD - Enable to test freeing gpu memory
+            del K, Q, wei, V
+            gc.collect()
+            torch.cuda.empty_cache()
         return out
 
 
